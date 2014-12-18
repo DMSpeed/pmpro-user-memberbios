@@ -1,19 +1,19 @@
 <?php
 /*
-Plugin Name: PMPro User Pages
+Plugin Name: PMPro Create Member Bio
 Plugin URI: http://www.paidmembershipspro.com/pmpro-user-pages/
-Description: When a user signs up, create a page for them that only they (and admins) have access to.
-Version: .3
-Author: Stranger Studios
+Description: When a user signs up, create a custom post type Member Bio for them that only they (and admins) have access to.
+Version: 1.0
+Author: Stranger Studios/Dorian Speed
 Author URI: http://www.strangerstudios.com
 
 To setup:
 
-	1. Create a top level page to store the user pages, e.g. "Members".
-	2. Set the value PMPROUP_PARENT_PAGE_ID to the ID of that page below.
+	1. Create a top level memberbio to store the user memberbios, e.g. "Members".
+	2. Set the value PMPROUP_PARENT_MEMBERBIO_ID to the ID of that page below.
 */
 
-define("PMPROUP_PARENT_PAGE_ID", 2270);
+define("PMPROUP_PARENT_MEMBERBIO_ID", 203);
 
 function pmproup_pmpro_after_checkout($user_id)
 {
@@ -25,48 +25,32 @@ function pmproup_pmpro_after_checkout($user_id)
 	//get the user's level
 	$level = pmpro_getMembershipLevelForUser($user_id);
 	
-	//do we have a page for this user yet?
-	$user_page_id = get_user_meta($user_id, "pmproup_user_page", true);	
+	//do we have a memberbio CPT post for this user yet?
+	$user_page_id = get_user_meta($user_id, "pmproup_user_memberbio", true);	
 	if(!$user_page_id)
 	{
 		//need to create it
 		$postdata = array(		 		  
 		  'post_author' => $user_id,
-		  'post_content' => "Pages for your purchases will be shown below.",		  
-		  'post_name' => $user->user_login,
-		  'post_parent' => PMPROUP_PARENT_PAGE_ID,		  
+		  'post_content' => "Leave this blank and use the fields above to enter your member information.",		  
+		  'post_name' => $user->display_name,
+		  'post_parent' => PMPROUP_PARENT_MEMBERBIO_ID,		  
 		  'post_status' => "publish",
 		  'post_title' => $user->display_name,
-		  'post_type' => "page"		  
+		  'post_type' => "memberbio"		  
 		); 
 		
-		$postdata = apply_filters("pmpro_user_page_postdata", $postdata, $user, $level);
+		$postdata = apply_filters("prmpro_user_memberbio_postdata", $postdata, $user, $level);
 		
 		$user_page_id = wp_insert_post($postdata);
 		
 		if($user_page_id)
 		{
 			//add meta
-			update_user_meta($user_id, "pmproup_user_page", $user_page_id);
+			update_user_meta($user_id, "pmproup_user_memberbio", $user_page_id);
 		}		
 	}
 	
-	if($user_page_id)
-	{
-		//create a new page for this order		
-		$postdata = array(		 		  
-		  'post_author' => $user_id,
-		  'post_content' => "Thank you for your purchase. This page will be updated soon with updates on your order.",		  		 
-		  'post_parent' => $user_page_id,		  
-		  'post_status' => "publish",
-		  'post_title' => $level->name,
-		  'post_type' => "page"		  
-		);  
-		
-		$postdata = apply_filters("pmpro_user_page_purchase_postdata", $postdata, $user, $level);
-		
-		$post_id = wp_insert_post($postdata);				
-	}
 }
 add_action("pmpro_after_checkout", "pmproup_pmpro_after_checkout");
 
@@ -79,7 +63,7 @@ function pmproup_pmpro_member_links_top()
 	global $current_user;
 	if(!empty($current_user->ID))
 	{
-		$user_page_id = get_user_meta($current_user->ID, "pmproup_user_page", true);
+		$user_page_id = get_user_meta($current_user->ID, "pmproup_user_memberbio", true);
 		if($user_page_id)
 		{
 			//get children
@@ -106,7 +90,7 @@ function pmproup_add_user_pages_below_the_content($content)
 	//is this the current user's members page?	
 	if(!empty($current_user->ID))
 	{
-		$user_page_id = get_user_meta($current_user->ID, "pmproup_user_page", true);
+		$user_page_id = get_user_meta($current_user->ID, "pmproup_user_memberbio", true);
 		if($user_page_id && $post->ID == $user_page_id)
 		{
 			//alright, let's show the page list at the end of the_content			
@@ -131,7 +115,7 @@ add_action("the_content", "pmproup_add_user_pages_below_the_content");
 function pmproup_wp_parent_page()
 {
 	global $wpdb, $post;
-	if(!is_admin() && $post->ID == PMPROUP_PARENT_PAGE_ID)
+	if(!is_admin() && $post->ID == PMPROUP_PARENT_MEMBERBIO_ID)
 	{
 		if(!current_user_can("manage_options"))		
 		{
@@ -147,12 +131,12 @@ add_action("wp", "pmproup_wp_parent_page");
 function pmproup_parent_page_content($content)
 {
 	global $post, $wpdb;
-	if(!is_admin() && $post->ID == PMPROUP_PARENT_PAGE_ID)
+	if(!is_admin() && $post->ID == PMPROUP_PARENT_MEMBERBIO_ID)
 	{
 		if(current_user_can("manage_options"))		
 		{
 			//alright, let's show the page list at the end of the_content			
-			$users = $wpdb->get_results("SELECT u.display_name, um.meta_value FROM $wpdb->usermeta um LEFT JOIN $wpdb->users u ON um.user_id = u.ID WHERE um.meta_key = 'pmproup_user_page' GROUP BY um.user_id");
+			$users = $wpdb->get_results("SELECT u.display_name, um.meta_value FROM $wpdb->usermeta um LEFT JOIN $wpdb->users u ON um.user_id = u.ID WHERE um.meta_key = 'pmproup_user_memberbio' GROUP BY um.user_id");
 			if(!empty($users))
 			{
 				$content .= "\n<ul class='user_page_list'>";
@@ -177,7 +161,7 @@ function pmproup_wp()
 	if(empty($post->ID))
 		return;
 	
-	$page_user_id = $wpdb->get_var("SELECT user_id FROM $wpdb->usermeta WHERE meta_key = 'pmproup_user_page' AND (meta_value = '" . $post->ID . "' OR meta_value = '" . $post->post_parent . "') LIMIT 1");
+	$page_user_id = $wpdb->get_var("SELECT user_id FROM $wpdb->usermeta WHERE meta_key = 'pmproup_user_memberbio' AND (meta_value = '" . $post->ID . "' OR meta_value = '" . $post->post_parent . "') LIMIT 1");
 	
 	if(!empty($page_user_id))
 	{
@@ -204,12 +188,12 @@ function pmproup_pmpro_confirmation_message($message)
 	if(empty($current_user->ID))
 		return $message;
 	
-	$user_page_id = get_user_meta($current_user->ID, "pmproup_user_page", true);
+	$user_page_id = get_user_meta($current_user->ID, "pmproup_user_memberbio", true);
 		
 	if(!empty($user_page_id))
 	{
 		//get the last page created for them
-		$lastpage = $wpdb->get_row("SELECT ID, post_title FROM $wpdb->posts WHERE post_type = 'page' AND post_parent = '" . $user_page_id . "' ORDER BY ID DESC LIMIT 1");
+		$lastpage = $wpdb->get_row("SELECT ID, post_title FROM $wpdb->posts WHERE post_type = 'memberbio' AND post_parent = '" . $user_page_id . "' ORDER BY ID DESC LIMIT 1");
 		
 		if(!empty($lastpage))
 		{
@@ -222,43 +206,3 @@ function pmproup_pmpro_confirmation_message($message)
 }
 add_action("pmpro_confirmation_message", "pmproup_pmpro_confirmation_message");
 
-/*
-	Remove user pages from frontend searches/etc.
-	
-	All user pages are children of the PMPROUP_PARENT_PAGE_ID page. So lets hide those pages (the main user pages) and the children of those pages (the purchased pages).
-*/
-function pmproup_pre_get_posts($query)
-{
-	//don't fix anything on the admin side, and also let admins see everything
-	if(is_admin() || current_user_can("manage_options"))
-		return $query;
-	
-	//Using a global to cache the user page ids. If it is not set, we need to look them up. (Note we're ignoring posts where the current user is author.)
-	global $wpdb, $current_user, $all_pmpro_user_page_ids;	
-	if(!isset($all_pmpro_user_page_ids))
-	{
-		//these are the top level member pages
-		if(!empty($current_user->ID))
-			$main_user_page_ids = $wpdb->get_col("SELECT ID FROM $wpdb->posts WHERE post_parent = '" . PMPROUP_PARENT_PAGE_ID . "' AND ID <> '" . PMPROUP_PARENT_PAGE_ID . "' AND post_author <> '" . $current_user->ID . "'");	
-		else
-			$main_user_page_ids = $wpdb->get_col("SELECT ID FROM $wpdb->posts WHERE post_parent = '" . PMPROUP_PARENT_PAGE_ID . "' AND ID <> '" . PMPROUP_PARENT_PAGE_ID . "'");	
-		if(empty($main_user_page_ids))
-			return $query;		//didn't find anything
-			
-		//these are the individually purchased user pages
-		if(!empty($current_user->ID))
-			$user_page_ids = $wpdb->get_col("SELECT ID FROM $wpdb->posts WHERE post_parent IN (" . implode(",", $main_user_page_ids) . ") AND post_author <> '" . $current_user->ID . "'");	
-		else
-			$user_page_ids = $wpdb->get_col("SELECT ID FROM $wpdb->posts WHERE post_parent IN (" . implode(",", $main_user_page_ids) . ")");	
-			
-		//combine the top level and sub pages
-		global $all_pmpro_user_page_ids;	
-		$all_pmpro_user_page_ids = array_merge($main_user_page_ids, $user_page_ids);
-	}	
-		
-	//add user page ids to the post__not_in query var
-	$query->set('post__not_in', array_merge($query->query_vars['post__not_in'], $all_pmpro_user_page_ids));	
-			
-	return $query;
-}
-add_filter("pre_get_posts", "pmproup_pre_get_posts");
